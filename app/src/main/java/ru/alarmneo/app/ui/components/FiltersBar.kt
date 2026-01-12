@@ -17,7 +17,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import ru.alarmneo.app.model.WeekDay
 import ru.alarmneo.app.ui.theme.AccentWarm
-import ru.alarmneo.app.ui.theme.BlueMuted
+import ru.alarmneo.app.ui.theme.BluePrimary
 import ru.alarmneo.app.ui.theme.Neu
 
 @Composable
@@ -31,8 +31,9 @@ fun FiltersBar(
     modifier: Modifier = Modifier
 ) {
     var groupMenu by remember { mutableStateOf(false) }
-
     val hasActiveFilters = (selectedDay != null) || (selectedGroup != null)
+
+    val accent = if (MaterialTheme.colors.isLight) BluePrimary else AccentWarm
 
     NeuCard(
         modifier = modifier
@@ -41,21 +42,21 @@ fun FiltersBar(
         cornerRadius = 20.dp,
         elevation = 10.dp,
         backgroundColor = Neu.bg,
-        outlineColor = AccentWarm.copy(alpha = 0.40f),
+        // ✅ без странных линий
+        outlineWidth = 0.dp,
         contentPadding = 12.dp
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
 
-            // Тонкий тёплый акцент (вместо “оранжевого ведра”)
+            // тонкий “премиум” акцент без ведра цвета
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(4.dp)
+                    .height(3.dp)
                     .clip(RoundedCornerShape(99.dp))
-                    .background(AccentWarm.copy(alpha = 0.70f))
+                    .background(accent.copy(alpha = if (MaterialTheme.colors.isLight) 0.55f else 0.65f))
             )
 
-            // Header row: "Фильтры" + "Сброс"
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -71,13 +72,11 @@ fun FiltersBar(
                     NeuChip(
                         text = "Сброс",
                         selected = false,
-                        onClick = onReset,
-                        modifier = Modifier
+                        onClick = onReset
                     )
                 }
             }
 
-            // Days
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(horizontal = 2.dp)
@@ -99,7 +98,6 @@ fun FiltersBar(
                 }
             }
 
-            // Group selector (chip + dropdown)
             Box {
                 val groupLabel = selectedGroup?.let { "Группа: $it" } ?: "Группа: Все группы"
 
@@ -118,7 +116,7 @@ fun FiltersBar(
                         groupMenu = false
                         onGroupChanged(null)
                     }) {
-                        Text("Все группы")
+                        Text("Все группы", color = MaterialTheme.colors.onSurface.copy(alpha = 0.90f))
                     }
 
                     groups.forEach { g ->
@@ -130,7 +128,7 @@ fun FiltersBar(
                                 text = g,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                color = BlueMuted
+                                color = MaterialTheme.colors.onSurface.copy(alpha = 0.90f)
                             )
                         }
                     }

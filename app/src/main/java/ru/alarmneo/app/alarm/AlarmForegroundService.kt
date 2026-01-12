@@ -123,6 +123,12 @@ class AlarmForegroundService : Service() {
                     )
                 )
 
+                if (useFullScreen) {
+                    runCatching {
+                        startActivity(uiIntent)
+                    }
+                }
+
                 startRing(soundId)
                 if (vibrate) startVibration(vibPattern)
             }

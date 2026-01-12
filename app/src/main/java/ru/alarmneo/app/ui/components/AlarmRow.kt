@@ -2,20 +2,18 @@ package ru.alarmneo.app.ui.components
 
 import android.content.Context
 import android.text.format.DateFormat
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import ru.alarmneo.app.model.Alarm
 import ru.alarmneo.app.model.WeekDay
 import ru.alarmneo.app.ui.theme.AccentWarm
-import ru.alarmneo.app.ui.theme.BlueMuted
-import ru.alarmneo.app.ui.theme.BluePrimary
 import java.util.Calendar
 import java.util.Date
 
@@ -53,6 +51,10 @@ fun AlarmRow(
 
     val contentAlpha = if (alarm.enabled) 1f else 0.45f
 
+    // Читаемые цвета (работают и в light, и в dark)
+    val primaryText = MaterialTheme.colors.onSurface
+    val secondaryText = MaterialTheme.colors.onSurface.copy(alpha = 0.72f)
+
     NeuCard(
         modifier = Modifier
             .fillMaxWidth()
@@ -74,7 +76,7 @@ fun AlarmRow(
                 Text(
                     text = timeText,
                     style = MaterialTheme.typography.h3,
-                    color = BluePrimary.copy(alpha = contentAlpha)
+                    color = primaryText.copy(alpha = contentAlpha)
                 )
 
                 // Label (вторично)
@@ -83,7 +85,7 @@ fun AlarmRow(
                     Text(
                         text = alarm.label,
                         style = MaterialTheme.typography.body2,
-                        color = BlueMuted.copy(alpha = contentAlpha),
+                        color = secondaryText.copy(alpha = contentAlpha),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -94,7 +96,7 @@ fun AlarmRow(
                 Text(
                     text = formatDays(alarm.days),
                     style = MaterialTheme.typography.caption,
-                    color = BlueMuted.copy(alpha = 0.85f * contentAlpha),
+                    color = secondaryText.copy(alpha = 0.90f * contentAlpha),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -103,7 +105,10 @@ fun AlarmRow(
 
                 // Group chip
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    GroupChip(text = alarm.groupName, enabledAlpha = contentAlpha)
+                    GroupChip(
+                        text = alarm.groupName,
+                        enabledAlpha = contentAlpha
+                    )
                 }
             }
 
@@ -127,7 +132,7 @@ fun AlarmRow(
                         Text(
                             "⋯",
                             style = MaterialTheme.typography.h6,
-                            color = BlueMuted.copy(alpha = 0.85f * contentAlpha)
+                            color = secondaryText.copy(alpha = 0.90f * contentAlpha)
                         )
                     }
 
@@ -158,9 +163,9 @@ private fun GroupChip(
     text: String,
     enabledAlpha: Float
 ) {
-    // тёплый акцент, но очень мягко (чтобы не спорил с основным UI)
+    // тёплый акцент — но текст должен быть читаемым в dark
     val bg = AccentWarm.copy(alpha = 0.28f * enabledAlpha)
-    val fg = BluePrimary.copy(alpha = 0.95f * enabledAlpha)
+    val fg = MaterialTheme.colors.onSurface.copy(alpha = 0.92f * enabledAlpha)
 
     Surface(
         color = bg,
@@ -187,7 +192,6 @@ private fun formatTimeSystem(context: Context, h24: Int, m: Int): String {
     val fmt = DateFormat.getTimeFormat(context) // уважает 12/24, AM/PM и локаль
     return fmt.format(Date(cal.timeInMillis))
 }
-
 
 private fun formatDays(days: Set<WeekDay>): String {
     if (days.isEmpty()) return "Единожды"

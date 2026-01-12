@@ -18,9 +18,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import ru.alarmneo.app.data.SettingsStore
+import ru.alarmneo.app.data.ThemeMode
 import ru.alarmneo.app.ui.screens.MainScreen
 import ru.alarmneo.app.ui.theme.alarmneoTheme
-
 
 class MainActivity : ComponentActivity() {
 
@@ -34,9 +37,24 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
         setContent {
-            alarmneoTheme {
-                MainScreen()
+            // prefs store
+            val settingsStore = remember { SettingsStore(this) }
+
+            // читаем сохранённую тему
+            var themeMode by rememberSaveable {
+                mutableStateOf(settingsStore.getThemeMode())
+            }
+
+            alarmneoTheme(themeMode = themeMode) {
+                MainScreen(
+                    themeMode = themeMode,
+                    onThemeModeChanged = { mode ->
+                        themeMode = mode
+                        settingsStore.setThemeMode(mode)
+                    }
+                )
             }
         }
 
@@ -57,7 +75,6 @@ class MainActivity : ComponentActivity() {
         if (shouldAskOverlay()) {
             if (!ensureOverlayPermission()) return
         }
-
     }
 
     private fun shouldAskOverlay(): Boolean {
@@ -85,22 +102,13 @@ class MainActivity : ComponentActivity() {
                 m.contains("vivo")
     }
 
-
     private fun ensureNotificationPermission(): Boolean {
+        // На < 13 нет runtime-permission POST_NOTIFICATIONS
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
 
-        val granted =
-            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        val granted = checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
+                PackageManager.PERMISSION_GRANTED
         if (granted) return true
-
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return true
-        if (Settings.canDrawOverlays(this)) return true
-
-        getSharedPreferences("perm_prefs", MODE_PRIVATE)
-            .edit()
-            .putBoolean("asked_overlay", true)
-            .apply()
-
 
         AlertDialog.Builder(this)
             .setTitle("Разрешение на уведомления")
@@ -178,6 +186,12 @@ class MainActivity : ComponentActivity() {
     private fun ensureOverlayPermission(): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return true
         if (Settings.canDrawOverlays(this)) return true
+
+        // пометим, что уже спрашивали
+        getSharedPreferences("perm_prefs", MODE_PRIVATE)
+            .edit()
+            .putBoolean("asked_overlay", true)
+            .apply()
 
         AlertDialog.Builder(this)
             .setTitle("Поверх других приложений")

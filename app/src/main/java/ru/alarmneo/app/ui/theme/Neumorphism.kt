@@ -1,36 +1,50 @@
 package ru.alarmneo.app.ui.theme
 
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 
-/**
- * Neumorphism configuration tuned for milk background.
- *
- * Base background: #E4DDD3
- * Primary text/icon: #3A4764
- * Outline: muted blue (for strokes/dividers)
- *
- * Shadows:
- *  - Light: #F5EFE8
- *  - Dark:  #CFC7BC
- */
 @Immutable
+data class NeuPalette(
+    val bg: Color,
+    val onBg: Color,
+    val outline: Color,
+    val lightShadow: Color,
+    val darkShadow: Color
+)
+
+private val LightNeu = NeuPalette(
+    bg = MilkBg,
+    onBg = BluePrimary,
+    outline = BlueMuted.copy(alpha = 0.55f),
+    lightShadow = ShadowLight,
+    darkShadow = ShadowDark
+)
+
+private val DarkNeu = NeuPalette(
+    bg = DarkBg,
+    onBg = DarkOnBg,
+    outline = DarkOutline,
+    lightShadow = DarkShadowLight,
+    darkShadow = DarkShadowDark
+)
+
 object Neu {
+    private var palette by mutableStateOf(LightNeu)
 
-    // Base surface / background
-    val bg: Color = MilkBg
+    val bg: Color get() = palette.bg
+    val onBg: Color get() = palette.onBg
+    val outline: Color get() = palette.outline
+    val lightShadow: Color get() = palette.lightShadow
+    val darkShadow: Color get() = palette.darkShadow
 
-    // Main content color on bg (text, icons)
-    val onBg: Color = BluePrimary
+    fun apply(dark: Boolean) {
+        palette = if (dark) DarkNeu else LightNeu
+    }
 
-    // Borders / dividers / subtle strokes
-    val outline: Color = BlueMuted.copy(alpha = 0.55f)
-
-    // Neumorphic shadows
-    val lightShadow: Color = ShadowLight
-    val darkShadow: Color = ShadowDark
-
-    // Default elevation values (if you reference them anywhere)
+    // если где-то используешь:
     val elevationSmall = 4f
     val elevationMedium = 8f
     val elevationLarge = 12f

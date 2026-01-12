@@ -39,3 +39,16 @@ val Pink40 = BlueMuted
 val Purple80 = Color(0xFFB9C6E8)      // light tint of BluePrimary
 val PurpleGrey80 = Color(0xFFE7C9A6)  // light tint of AccentWarm
 val Pink80 = Color(0xFFD4DAEA)        // soft neutral
+
+// ===== Neo Dark (final) =====
+val DarkBg = Color(0xFF0F131A)            // чуть холодный графит
+val DarkOnBg = Color(0xFFE8EDF5)          // мягкий белый (не слепит)
+val DarkOnBgMuted = Color(0xFFB7C0D3)     // вторичный текст
+val DarkOnBgFaint = Color(0xFF8E98AF)     // подсказки/лейблы
+
+val DarkOutline = Color(0xFF7B87A3).copy(alpha = 0.20f)
+
+// Shadows: без “ореолов”
+val DarkShadowLight = Color(0xFF1B2331).copy(alpha = 0.92f)
+val DarkShadowDark  = Color(0xFF05070B).copy(alpha = 0.88f)
+

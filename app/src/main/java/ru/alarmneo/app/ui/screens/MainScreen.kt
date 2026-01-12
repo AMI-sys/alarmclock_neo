@@ -7,9 +7,13 @@ import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.platform.LocalContext
+import ru.alarmneo.app.data.SettingsStore
+import ru.alarmneo.app.data.ThemeMode
 import ru.alarmneo.app.model.Alarm
 import ru.alarmneo.app.model.WeekDay
 import ru.alarmneo.app.ui.components.*
@@ -18,15 +22,23 @@ import ru.alarmneo.app.viewmodel.AlarmViewModel
 import ru.alarmneo.app.viewmodel.Mode
 import ru.alarmneo.app.alarm.NextAlarmUtils
 
-
 private const val NEW_ALARM_ID = -1
 
 @Composable
-fun MainScreen(vm: AlarmViewModel = viewModel()) {
-
+fun MainScreen(
+    themeMode: ThemeMode,
+    onThemeModeChanged: (ThemeMode) -> Unit,
+    vm: AlarmViewModel = viewModel()
+) {
     var editingId by remember { mutableStateOf<Int?>(null) }
     var showSettings by remember { mutableStateOf(false) }
-    var defaultVibrate by remember { mutableStateOf(true) }
+
+    val context = LocalContext.current
+    val settingsStore = remember { SettingsStore(context) }
+
+    var defaultVibrate by rememberSaveable {
+        mutableStateOf(settingsStore.getDefaultVibrate())
+    }
 
     val groupNames = vm.groups.map { it.name }
 
@@ -34,7 +46,12 @@ fun MainScreen(vm: AlarmViewModel = viewModel()) {
         SettingsScreen(
             onBack = { showSettings = false },
             vibrateByDefault = defaultVibrate,
-            onVibrateByDefaultChanged = { defaultVibrate = it }
+            onVibrateByDefaultChanged = {
+                defaultVibrate = it
+                settingsStore.setDefaultVibrate(it)
+            },
+            themeMode = themeMode,
+            onThemeModeChanged = onThemeModeChanged
         )
         return
     }
@@ -68,7 +85,7 @@ fun MainScreen(vm: AlarmViewModel = viewModel()) {
                 NeuFab(
                     modifier = Modifier
                         .navigationBarsPadding()
-                        .padding(bottom = 8.dp), // можно 0.dp или 8.dp по вкусу
+                        .padding(bottom = 8.dp),
                     onClick = { editingId = NEW_ALARM_ID }
                 ) {
                     Icon(
@@ -77,7 +94,6 @@ fun MainScreen(vm: AlarmViewModel = viewModel()) {
                         tint = Neu.onBg.copy(alpha = 0.9f)
                     )
                 }
-
             }
         }
     ) { padding ->
@@ -114,17 +130,19 @@ fun MainScreen(vm: AlarmViewModel = viewModel()) {
                         onReset = vm::resetFilters
                     )
 
-                    val nextInfo = remember(vm.alarms) { ru.alarmneo.app.alarm.NextAlarmUtils.findNext(vm.alarms) }
+                    val nextInfo by remember {
+                        derivedStateOf { NextAlarmUtils.findNext(vm.alarms) }
+                    }
 
-                    if (nextInfo != null) {
+
+                    nextInfo?.let { info ->
                         NextAlarmCard(
-                            info = nextInfo,
+                            info = info,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 12.dp, vertical = 6.dp)
                         )
                     }
-
 
                     val sorted = vm.visibleAlarms
                         .sortedWith(compareBy<Alarm>({ it.hour }, { it.minute }))
@@ -142,9 +160,11 @@ fun MainScreen(vm: AlarmViewModel = viewModel()) {
                     if (nothingToShow) {
                         EmptyState(onClear = vm::resetFilters)
                     } else {
-                        LazyColumn(Modifier
-                            .fillMaxSize()
-                            .navigationBarsPadding()) {
+                        LazyColumn(
+                            Modifier
+                                .fillMaxSize()
+                                .navigationBarsPadding()
+                        ) {
                             if (everyday.isNotEmpty()) {
                                 item { SectionHeader(title = "Каждый день", count = everyday.size) }
                                 items(everyday, key = { "every_${it.id}" }) { alarm ->
@@ -192,9 +212,11 @@ fun MainScreen(vm: AlarmViewModel = viewModel()) {
                 }
 
                 Mode.Group -> {
-                    LazyColumn(Modifier
-                        .fillMaxSize()
-                        .navigationBarsPadding()) {
+                    LazyColumn(
+                        Modifier
+                            .fillMaxSize()
+                            .navigationBarsPadding()
+                    ) {
                         items(vm.groups, key = { it.id }) { group ->
                             GroupRow(group = group, onToggleGroup = vm::toggleGroup)
                         }

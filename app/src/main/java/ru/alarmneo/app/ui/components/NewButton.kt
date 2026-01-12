@@ -1,7 +1,6 @@
 package ru.alarmneo.app.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -9,8 +8,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -30,15 +29,18 @@ fun NewButton(
     content: @Composable () -> Unit
 ) {
     val shape = RoundedCornerShape(cornerRadius)
-    val alpha = if (enabled) 1f else 0.45f
+    val a = if (enabled) 1f else 0.50f
 
     Box(
         modifier = modifier
-            .alpha(if (enabled) 1f else 0.65f)
-            .then(if (enabled) Modifier.neuShadow(cornerRadius = cornerRadius, elevation = elevation) else Modifier)
+            .alpha(if (enabled) 1f else 0.70f)
+            .neuShadow(
+                cornerRadius = cornerRadius,
+                elevation = if (enabled) elevation else 0.dp,
+                outlineColor = outlineColor.copy(alpha = outlineColor.alpha * a)
+            )
             .clip(shape)
-            .background(backgroundColor.copy(alpha = backgroundColor.alpha * alpha))
-            .border(1.dp, outlineColor.copy(alpha = outlineColor.alpha * alpha), shape)
+            .background(backgroundColor.copy(alpha = backgroundColor.alpha * a))
             .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(contentPadding)
     ) {
