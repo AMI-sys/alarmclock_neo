@@ -48,7 +48,7 @@ class MainActivity : ComponentActivity() {
             }
 
             alarmneoTheme(themeMode = themeMode) {
-                MainScreen(
+                ru.alarmneo.app.ui.navigation.RootScaffold(
                     themeMode = themeMode,
                     onThemeModeChanged = { mode ->
                         themeMode = mode
@@ -56,6 +56,7 @@ class MainActivity : ComponentActivity() {
                     }
                 )
             }
+
         }
 
         runPermissionChecks()

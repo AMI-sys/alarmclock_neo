@@ -1,9 +1,14 @@
 package ru.alarmneo.app.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material.MaterialTheme
 import androidx.compose.material.darkColors
 import androidx.compose.material.lightColors
+import androidx.compose.material.MaterialTheme as Material2Theme
+
+import androidx.compose.material3.MaterialTheme as Material3Theme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.graphics.Color
@@ -51,14 +56,45 @@ fun alarmneoTheme(
         )
     }
 
-    MaterialTheme(
+    Material2Theme(
         colors = colors,
         typography = Typography,
-        shapes = Shapes,
-        content = content
-    )
+        shapes = Shapes
+    ) {
+        // Мост: Material3 получает схему из Material2-цветов
+        val scheme = if (dark) {
+            darkColorScheme(
+                primary = colors.primary,
+                secondary = colors.secondary,
+                background = colors.background,
+                surface = colors.surface,
+                onPrimary = colors.onPrimary,
+                onSecondary = colors.onSecondary,
+                onBackground = colors.onBackground,
+                onSurface = colors.onSurface,
+            )
+        } else {
+            lightColorScheme(
+                primary = colors.primary,
+                secondary = colors.secondary,
+                background = colors.background,
+                surface = colors.surface,
+                onPrimary = colors.onPrimary,
+                onSecondary = colors.onSecondary,
+                onBackground = colors.onBackground,
+                onSurface = colors.onSurface,
+            )
+        }
+
+        Material3Theme(
+            colorScheme = scheme,
+            typography = androidx.compose.material3.Typography(),
+            content = content
+        )
+    }
+
 }
 
-@Composable fun textPrimary() = MaterialTheme.colors.onSurface
-@Composable fun textSecondary() = MaterialTheme.colors.onSurface.copy(alpha = 0.72f)
-@Composable fun textHint() = MaterialTheme.colors.onSurface.copy(alpha = 0.52f)
+@Composable fun textPrimary() = Material3Theme.colorScheme.onSurface
+@Composable fun textSecondary() = Material3Theme.colorScheme.onSurface.copy(alpha = 0.72f)
+@Composable fun textHint() = Material3Theme.colorScheme.onSurface.copy(alpha = 0.52f)

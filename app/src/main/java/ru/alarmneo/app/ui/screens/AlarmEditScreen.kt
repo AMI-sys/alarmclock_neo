@@ -59,6 +59,7 @@ import ru.alarmneo.app.model.Alarm
 import ru.alarmneo.app.model.WeekDay
 import ru.alarmneo.app.ui.components.*
 import ru.alarmneo.app.ui.sound.AlarmSounds
+import ru.alarmneo.app.ui.sound.SoundPreviewPlayer
 import ru.alarmneo.app.ui.vibration.VibrationPatterns
 import ru.alarmneo.app.ui.theme.Neu
 import kotlin.math.max
@@ -79,6 +80,12 @@ fun AlarmEditScreen(
     onDelete: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
+
+    val previewPlayer = remember { SoundPreviewPlayer(context) }
+    DisposableEffect(Unit) {
+        onDispose { previewPlayer.release() }
+    }
+
 
     val is24h = remember { DateFormat.is24HourFormat(context) }
 
@@ -135,6 +142,7 @@ fun AlarmEditScreen(
                 }
 
                 soundId = it.toString()
+                previewPlayer.play(soundId)
                 AlarmSounds.registerCustomSound(soundId, name) // см. ниже
                 wasEdited = true
             }
@@ -494,75 +502,107 @@ fun AlarmEditScreen(
             }
 
             if (showSoundPicker) {
+                var pendingId by remember(soundId) { mutableStateOf(soundId) }
+
                 AlertDialog(
-                    onDismissRequest = { showSoundPicker = false },
+                    onDismissRequest = {
+                        previewPlayer.stop()
+                        showSoundPicker = false
+                    },
                     title = { Text("Выберите мелодию") },
                     text = {
                         Column {
                             LazyColumn {
                                 item {
-                                    Row(Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            soundId = AlarmSounds.NONE_ID
-                                            showSoundPicker = false
-                                            wasEdited = true
-                                        }
-                                        .padding(12.dp),
-                                        verticalAlignment = Alignment.CenterVertically) {
+                                    Row(
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                pendingId = AlarmSounds.NONE_ID
+                                                previewPlayer.stop()
+                                            }
+                                            .padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
                                         Text("Без звука", Modifier.weight(1f))
-                                        if (soundId == AlarmSounds.NONE_ID) {
+                                        if (pendingId == AlarmSounds.NONE_ID) {
                                             Icon(Icons.Default.Check, contentDescription = null)
                                         }
                                     }
                                 }
 
                                 items(AlarmSounds.all) { sound ->
-                                    Row(Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            soundId = sound.id
-                                            showSoundPicker = false
-                                            wasEdited = true
-                                        }
-                                        .padding(12.dp),
-                                        verticalAlignment = Alignment.CenterVertically) {
+                                    Row(
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                pendingId = sound.id
+                                                // демо‑прослушивание ДО назначения
+                                                previewPlayer.toggle(sound.id)
+
+                                            }
+                                            .padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
                                         Text(sound.title, Modifier.weight(1f))
-                                        if (sound.id == soundId) {
+                                        if (pendingId == sound.id) {
                                             Icon(Icons.Default.Check, contentDescription = null)
                                         }
                                     }
                                 }
 
                                 item {
-                                    if (soundId != AlarmSounds.NONE_ID && AlarmSounds.all.none { it.id == soundId }) {
-                                        Row(Modifier
-                                            .fillMaxWidth()
-                                            .clickable {
-                                                showSoundPicker = false
-                                            }
-                                            .padding(12.dp),
-                                            verticalAlignment = Alignment.CenterVertically) {
+                                    // Если выбран кастомный URI (не из AlarmSounds.all)
+                                    if (pendingId != AlarmSounds.NONE_ID && AlarmSounds.all.none { it.id == pendingId }) {
+                                        Row(
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .clickable {
+                                                    // превью кастомного файла (если возможно)
+                                                    previewPlayer.toggle(pendingId)
+                                                }
+                                                .padding(12.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
                                             Text("Пользовательский файл", Modifier.weight(1f))
                                             Icon(Icons.Default.Check, contentDescription = null)
                                         }
                                     }
                                 }
-
-
                             }
+
                             Spacer(Modifier.height(8.dp))
+
                             NewButton(onClick = {
-                                showSoundPicker = false
+                                // открываем SAF‑пикер
                                 customSoundLauncher.launch(arrayOf("audio/*"))
                             }) {
                                 Text("Выбрать свой файл")
                             }
                         }
                     },
-                    confirmButton = {},
-                    dismissButton = {})
+                    confirmButton = {
+                        TextButton(onClick = {
+                            // Назначаем только здесь
+                            soundId = pendingId
+                            wasEdited = true
+                            previewPlayer.stop()
+                            showSoundPicker = false
+                        }) {
+                            Text("Выбрать")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = {
+                            previewPlayer.stop()
+                            showSoundPicker = false
+                        }) {
+                            Text("Отмена")
+                        }
+                    }
+                )
             }
+
 
             if (showVibrationPicker) {
                 AlertDialog(
