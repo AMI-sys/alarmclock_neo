@@ -11,6 +11,8 @@ import android.os.Looper
 
 class SoundPreviewPlayer(private val context: Context) {
 
+    var onStateChanged: (() -> Unit)? = null
+
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
     private var focusRequest: AudioFocusRequest? = null
@@ -21,16 +23,15 @@ class SoundPreviewPlayer(private val context: Context) {
     private enum class State { IDLE, PREPARING, PLAYING }
     private var state: State = State.IDLE
 
-    // Токен, чтобы “устаревшие” onPrepared не могли стартануть после stop()
     private var playToken: Int = 0
+    private var pendingToken: Int = 0
 
-    // авто-стоп
     private val handler = Handler(Looper.getMainLooper())
     private var stopRunnable: Runnable? = null
     private val maxPreviewMs = 8000L
 
     private val attrs: AudioAttributes = AudioAttributes.Builder()
-        .setUsage(AudioAttributes.USAGE_ALARM)
+        .setUsage(AudioAttributes.USAGE_MEDIA)
         .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
         .build()
 
@@ -40,13 +41,7 @@ class SoundPreviewPlayer(private val context: Context) {
             stop()
             return
         }
-
-        // Если тот же трек уже играет ИЛИ готовится — stop
-        if (currentKey == k && (state == State.PREPARING || state == State.PLAYING)) {
-            stop()
-        } else {
-            play(k)
-        }
+        if (currentKey == k && (state == State.PREPARING || state == State.PLAYING)) stop() else play(k)
     }
 
     fun play(key: String?) {
@@ -56,41 +51,36 @@ class SoundPreviewPlayer(private val context: Context) {
             return
         }
 
-        // Инвалидируем все старые колбэки
         playToken++
         val token = playToken
+        pendingToken = token
 
         stopPlayerOnly()
         if (!requestFocus()) return
 
-        val uri = resolveToUri(k) ?: run {
-            abandonFocus()
-            return
-        }
-
-        val mp = (player ?: MediaPlayer().also { player = it }).apply {
-            reset()
-            setAudioAttributes(attrs)
-
-            setOnPreparedListener {
-                if (token != playToken) return@setOnPreparedListener
-                state = State.PLAYING
-                it.start()
-            }
-            setOnCompletionListener {
-                if (token == playToken) stop()
-            }
-            setOnErrorListener { _, _, _ ->
-                if (token == playToken) stop()
-                true
-            }
-        }
+        val mp = ensurePlayer()
 
         currentKey = k
         state = State.PREPARING
+        onStateChanged?.invoke()
+
+        val builtInResId = AlarmSounds.byId(k)?.resId
 
         runCatching {
-            mp.setDataSource(context, uri)
+            if (builtInResId != null) {
+                val afd = context.resources.openRawResourceFd(builtInResId)
+                    ?: error("openRawResourceFd returned null for $builtInResId")
+                mp.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+                afd.close()
+            } else {
+                val uri = resolveToUri(k) ?: run {
+                    abandonFocus()
+                    stopPlayerOnly()
+                    return
+                }
+                mp.setDataSource(context, uri)
+            }
+
             mp.prepareAsync()
 
             stopRunnable = Runnable {
@@ -102,22 +92,58 @@ class SoundPreviewPlayer(private val context: Context) {
         }
     }
 
+    fun isPlaying(key: String?): Boolean {
+        val k = key?.trim().orEmpty()
+        return currentKey == k && state == State.PLAYING
+    }
+
     fun stop() {
-        // Инвалидируем колбэки
         playToken++
         stopPlayerOnly()
         abandonFocus()
+        onStateChanged?.invoke()
     }
 
-    fun release() = stop()
+    fun release() {
+        stop()
+        runCatching { player?.release() }
+        player = null
+    }
 
     private fun stopPlayerOnly() {
         stopRunnable?.let { handler.removeCallbacks(it) }
         stopRunnable = null
 
-        runCatching { player?.stop() }
+        runCatching { player?.reset() }
+
         currentKey = null
         state = State.IDLE
+        onStateChanged?.invoke()
+    }
+
+    private fun ensurePlayer(): MediaPlayer {
+        val existing = player
+        if (existing != null) return existing
+
+        val mp = MediaPlayer().apply {
+            setAudioAttributes(attrs)
+
+            setOnPreparedListener {
+                // ✅ токен актуальный, не “первый”
+                if (pendingToken != playToken) return@setOnPreparedListener
+                runCatching {
+                    start()
+                    state = State.PLAYING
+                    onStateChanged?.invoke()
+                }.onFailure { stop() }
+            }
+
+            setOnCompletionListener { stop() }
+            setOnErrorListener { _, _, _ -> stop(); true }
+        }
+
+        player = mp
+        return mp
     }
 
     private fun requestFocus(): Boolean {
@@ -138,13 +164,15 @@ class SoundPreviewPlayer(private val context: Context) {
     }
 
     private fun resolveToUri(key: String): Uri? {
-        return when {
-            key.startsWith("content://") || key.startsWith("file://") || key.startsWith("android.resource://") ->
-                Uri.parse(key)
-            else -> {
-                val resId = context.resources.getIdentifier(key, "raw", context.packageName)
-                if (resId != 0) Uri.parse("android.resource://${context.packageName}/$resId") else null
-            }
+        if (key.startsWith("content://") || key.startsWith("file://") || key.startsWith("android.resource://")) {
+            return Uri.parse(key)
         }
+
+        val normalized = key.trim().lowercase()
+            .removeSuffix(".mp3").removeSuffix(".wav").removeSuffix(".ogg")
+            .replace(' ', '_').replace('-', '_')
+
+        val resId = context.resources.getIdentifier(normalized, "raw", context.packageName)
+        return if (resId != 0) Uri.parse("android.resource://${context.packageName}/$resId") else null
     }
 }

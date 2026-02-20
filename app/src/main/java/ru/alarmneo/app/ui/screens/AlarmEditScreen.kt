@@ -31,6 +31,8 @@ import androidx.compose.material.AlertDialog
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material.MaterialTheme
@@ -86,6 +88,12 @@ fun AlarmEditScreen(
         onDispose { previewPlayer.release() }
     }
 
+    var previewTick by remember { mutableIntStateOf(0) }
+
+    DisposableEffect(previewPlayer) {
+        previewPlayer.onStateChanged = { previewTick++ }
+        onDispose { previewPlayer.onStateChanged = null }
+    }
 
     val is24h = remember { DateFormat.is24HourFormat(context) }
 
@@ -503,6 +511,7 @@ fun AlarmEditScreen(
 
             if (showSoundPicker) {
                 var pendingId by remember(soundId) { mutableStateOf(soundId) }
+                val previewTickLocal = previewTick
 
                 AlertDialog(
                     onDismissRequest = {
@@ -521,13 +530,20 @@ fun AlarmEditScreen(
                                                 pendingId = AlarmSounds.NONE_ID
                                                 previewPlayer.stop()
                                             }
-                                            .padding(12.dp),
+                                            .padding(horizontal = 12.dp, vertical = 8.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
+                                        Spacer(Modifier.width(48.dp)) // чтобы выровнять с IconButton слева
+
                                         Text("Без звука", Modifier.weight(1f))
-                                        if (pendingId == AlarmSounds.NONE_ID) {
-                                            Icon(Icons.Default.Check, contentDescription = null)
-                                        }
+
+                                        RadioButton(
+                                            selected = pendingId == AlarmSounds.NONE_ID,
+                                            onClick = {
+                                                pendingId = AlarmSounds.NONE_ID
+                                                previewPlayer.stop()
+                                            }
+                                        )
                                     }
                                 }
 
@@ -535,38 +551,27 @@ fun AlarmEditScreen(
                                     Row(
                                         Modifier
                                             .fillMaxWidth()
-                                            .clickable {
-                                                pendingId = sound.id
-                                                // демо‑прослушивание ДО назначения
-                                                previewPlayer.toggle(sound.id)
-
-                                            }
-                                            .padding(12.dp),
+                                            .clickable { pendingId = sound.id }
+                                            .padding(horizontal = 12.dp, vertical = 8.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Text(sound.title, Modifier.weight(1f))
-                                        if (pendingId == sound.id) {
-                                            Icon(Icons.Default.Check, contentDescription = null)
-                                        }
-                                    }
-                                }
-
-                                item {
-                                    // Если выбран кастомный URI (не из AlarmSounds.all)
-                                    if (pendingId != AlarmSounds.NONE_ID && AlarmSounds.all.none { it.id == pendingId }) {
-                                        Row(
-                                            Modifier
-                                                .fillMaxWidth()
-                                                .clickable {
-                                                    // превью кастомного файла (если возможно)
-                                                    previewPlayer.toggle(pendingId)
-                                                }
-                                                .padding(12.dp),
-                                            verticalAlignment = Alignment.CenterVertically
+                                        IconButton(
+                                            onClick = { previewPlayer.toggle(sound.id) }
                                         ) {
-                                            Text("Пользовательский файл", Modifier.weight(1f))
-                                            Icon(Icons.Default.Check, contentDescription = null)
+                                            Icon(
+                                                imageVector = if (previewPlayer.isPlaying(sound.id)) Icons.Default.Stop else Icons.Default.PlayArrow,
+                                                contentDescription = "Прослушать"
+                                            )
                                         }
+
+                                        Spacer(Modifier.width(8.dp))
+
+                                        Text(sound.title, Modifier.weight(1f))
+
+                                        RadioButton(
+                                            selected = pendingId == sound.id,
+                                            onClick = { pendingId = sound.id }
+                                        )
                                     }
                                 }
                             }
